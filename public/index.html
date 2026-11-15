@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Radar VIE</title>
+<meta name="description" content="Ma veille V.I.E. : les offres repérées chaque matin, notées sur mon profil, et une lettre prête pour celles que je valide.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f6f0e6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171411" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Radar VIE">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&display=swap">
+<style>
+  /* Layout: a centred 1100px column on a 12-column grid (77px columns, 16px gutters: 12 x 77 + 11 x 16 = 1100).
+     Greeting row across 12 columns, then the list on 5 (449px) and the open offer on 7 (635px): 449 + 16 + 635 = 1100.
+     Palette taken from Samuel's "Dune" CV: sand ground, night ink, spice on the match score only. */
+  :root {
+    --ground: #f6f0e6;  --surface: #fffcf7;  --raised: #efe5d4;  --active: #e6d8c1;
+    --border: #e3d6c1;  --rule: #ebe1d0;     --control: #c9b597;
+    --text: #1f1b17;    --muted: #5c5145;    --faint: #6a5e4f;
+    --primary: #1f1b17; --on-primary: #fffcf7;
+    --accent: #b8501c;  --track: #e6d8c1;
+    --pill-neg-bg: #fbe3dc; --pill-neg-ink: #7d2412;
+    --pill-pos-bg: #dcf3e2; --pill-pos-ink: #0f3b1f;
+    --font: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    --brand: "Syncopate", "Avenir Next", sans-serif;
+    --fs-title: 26px; --fs-h2: 20px; --fs-section: 15px; --fs-body: 14px; --fs-small: 12.5px;
+    --radius-card: 8px; --radius-control: 6px; --gap: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #171411;  --surface: #1f1b17;  --raised: #26211c;  --active: #332c25;
+      --border: #2f2922;  --rule: #29241e;     --control: #54493d;
+      --text: #f3ece2;    --muted: #c2b6a6;    --faint: #a89a88;
+      --primary: #f3ece2; --on-primary: #1f1b17;
+      --accent: #e07a45;  --track: #3a3229;
+      --pill-neg-bg: #3a1f17; --pill-neg-ink: #f2a184;
+      --pill-pos-bg: #18301f; --pill-pos-ink: #7fd39a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #171411;  --surface: #1f1b17;  --raised: #26211c;  --active: #332c25;
+    --border: #2f2922;  --rule: #29241e;     --control: #54493d;
+    --text: #f3ece2;    --muted: #c2b6a6;    --faint: #a89a88;
+    --primary: #f3ece2; --on-primary: #1f1b17;
+    --accent: #e07a45;  --track: #3a3229;
+    --pill-neg-bg: #3a1f17; --pill-neg-ink: #f2a184;
+    --pill-pos-bg: #18301f; --pill-pos-ink: #7fd39a;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--ground); color: var(--text);
+    font: 400 var(--fs-body)/20px var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  button { font: inherit; color: inherit; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .app { max-width: 1100px; margin: 0 auto; padding-block: 28px 48px; }
+
+  /* Brand row */
+  .brand { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .mark { display: flex; align-items: center; gap: 10px; font: 700 12px/1 var(--brand); letter-spacing: 0.06em; }
+  .sun { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); flex: none; }
+  .stamp { color: var(--faint); font-size: var(--fs-small); }
+
+  /* Greeting */
+  .greeting { margin-top: 36px; }
+  h1 { margin: 0; font-size: var(--fs-title); line-height: 32px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+  .finding { margin: 6px 0 0; color: var(--muted); font-size: 15px; line-height: 22px; max-width: 70ch; }
+
+  /* Views as underline tabs */
+  .tabs { display: flex; gap: 24px; margin-top: 28px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  .tab { background: none; border: 0; padding: 0 0 10px; cursor: pointer; color: var(--muted); white-space: nowrap; position: relative; display: flex; gap: 6px; align-items: baseline; }
+  .tab b { font-weight: 400; color: var(--faint); }
+  .tab[aria-selected="true"] { color: var(--text); font-weight: 600; }
+  .tab[aria-selected="true"] b { color: var(--text); font-weight: 600; }
+  .tab[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--text); }
+
+  /* Two regions */
+  .work { display: grid; grid-template-columns: 449px minmax(0, 1fr); gap: var(--gap); margin-top: 20px; align-items: start; }
+
+  .list { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .band h2 { margin: 0 0 6px; font-size: var(--fs-small); line-height: 16px; font-weight: 500; color: var(--faint); }
+  .band ul { list-style: none; margin: 0; padding: 0; background: var(--raised); border-radius: var(--radius-card); }
+  .band li + li .row { border-top: 1px solid var(--rule); }
+  .row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px;
+    width: 100%; text-align: left; background: none; border: 0; padding: 12px 14px; cursor: pointer; border-radius: 0;
+  }
+  .band li:first-child .row { border-top-left-radius: var(--radius-card); border-top-right-radius: var(--radius-card); }
+  .band li:last-child .row { border-bottom-left-radius: var(--radius-card); border-bottom-right-radius: var(--radius-card); }
+  .row:hover { background: color-mix(in srgb, var(--active) 55%, transparent); }
+  .row[aria-current="true"] { background: var(--active); }
+  .row .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .s { font-weight: 400; text-align: right; }
+  .row .w { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .p { color: var(--muted); font-size: 13px; text-align: right; white-space: nowrap; }
+  .pill { display: inline-block; flex: none; white-space: nowrap; border-radius: 4px; padding: 1px 6px; font-size: 12px; line-height: 18px; font-weight: 500; }
+  .pill.neg { background: var(--pill-neg-bg); color: var(--pill-neg-ink); }
+  .pill.pos { background: var(--pill-pos-bg); color: var(--pill-pos-ink); }
+
+  /* The open offer */
+  .detail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; min-width: 0; }
+  .back { display: none; }
+  .detail h2 { margin: 0; font-size: var(--fs-h2); line-height: 26px; font-weight: 600; text-wrap: balance; }
+  .where { margin: 4px 0 0; color: var(--muted); }
+  .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 20px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-card); }
+  .facts div { padding: 12px 14px; min-width: 0; }
+  .facts div + div { border-left: 1px solid var(--border); }
+  .facts dt { color: var(--faint); font-size: var(--fs-small); line-height: 16px; }
+  .facts dd { margin: 4px 0 0; font-size: 17px; line-height: 22px; }
+  .facts dd small { color: var(--muted); font-size: 12.5px; }
+
+  .match { margin-top: 22px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; align-items: center; }
+  .match .score { font-size: 24px; line-height: 28px; }
+  .match .score small { font-size: 13px; color: var(--faint); }
+  .bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .match p { grid-column: 1 / -1; margin: 6px 0 0; max-width: 68ch; }
+
+  .block { margin-top: 22px; }
+  .block h3 { margin: 0 0 6px; font-size: var(--fs-section); line-height: 20px; font-weight: 600; }
+  .block p { margin: 0; max-width: 68ch; line-height: 22px; }
+  .skills { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .skills li { padding: 3px 9px; border-radius: 4px; background: var(--raised); font-size: 13px; line-height: 18px; white-space: nowrap; }
+  .skills li.miss { background: none; color: var(--muted); border: 1px dashed var(--control); padding: 2px 8px; }
+  .skills-note { margin-top: 6px !important; color: var(--faint); font-size: var(--fs-small); }
+
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--rule); }
+  .btn { height: 36px; padding: 0 16px; border-radius: var(--radius-control); border: 1px solid var(--control); background: var(--surface); cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; text-decoration: none; transition: transform 80ms ease; }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+  .btn:disabled { opacity: 1; color: var(--faint); cursor: default; }
+  .link { margin-left: auto; color: var(--text); font-weight: 500; text-underline-offset: 3px; }
+  .note { margin: 0; color: var(--muted); }
+  .copy { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; }
+  .copy pre { margin: 0; flex: 1; min-width: 0; white-space: pre-wrap; font: inherit; background: var(--raised); border-radius: var(--radius-control); padding: 10px 12px; }
+
+  .btn.cv { margin-top: 10px; }
+  .cvs { margin: 28px 0 0; color: var(--muted); font-size: 13px; }
+  .cvs a { color: var(--text); font-weight: 500; text-underline-offset: 3px; }
+  .empty { background: var(--raised); border-radius: var(--radius-card); padding: 18px; color: var(--muted); }
+  .empty strong { display: block; color: var(--text); font-weight: 600; margin-bottom: 2px; }
+  .skeleton { display: block; height: 14px; border-radius: 3px; background: var(--active); }
+
+  /* PDF reader: letters and CVs open inside the page. A link to a new tab leaves the page,
+     and outside it the stored PDF is not served (the phone shows "not found"). */
+  .cvs button { background: none; border: 0; padding: 0; cursor: pointer; color: var(--text); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+  html.reader-open, html.reader-open body { overflow: hidden; }
+  .reader { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--ground); }
+  .reader-bar {
+    display: flex; align-items: center; gap: 10px; flex: none;
+    padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+    min-height: calc(56px + env(safe-area-inset-top, 0px));
+    background: var(--surface); border-bottom: 1px solid var(--rule);
+  }
+  .reader-close { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 4px 0 0; background: none; border: 0; cursor: pointer; font-weight: 600; font-size: 15px; flex: none; }
+  .reader-close span { font-size: 20px; line-height: 1; }
+  .reader-title { flex: 1; min-width: 0; margin: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reader-body {
+    flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .reader-body canvas { display: block; background: #fff; border: 1px solid var(--border); max-width: 100%; }
+  .reader-body iframe { display: block; width: 100%; max-width: 900px; flex: 1; min-height: 70vh; border: 1px solid var(--border); background: #fff; }
+  .reader-body .note { align-self: stretch; max-width: 60ch; margin: 8px auto 0; }
+  .reader-msg { margin: 0 auto; max-width: 60ch; color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+
+  @media (max-width: 860px) {
+    .app { padding-block: 16px 32px; }
+    .greeting { margin-top: 22px; }
+    h1 { font-size: 22px; line-height: 28px; }
+    .work { grid-template-columns: minmax(0, 1fr); }
+    .work.reading .list { display: none; }
+    .work:not(.reading) .detail { display: none; }
+    .app.reading .greeting, .app.reading .tabs { display: none; }
+    .back {
+      position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2;
+      display: flex; align-items: center; gap: 10px; width: calc(100% + 36px); min-height: 52px;
+      margin: -18px -18px 18px; padding: 0 18px;
+      background: var(--surface); border: 0; border-bottom: 1px solid var(--rule);
+      border-radius: var(--radius-card) var(--radius-card) 0 0;
+      color: var(--text); font-weight: 600; font-size: 15px; text-align: left; cursor: pointer;
+    }
+    .back span { font-size: 20px; line-height: 1; }
+    .detail { padding: 18px; }
+    .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .facts div:nth-child(3) { border-left: 0; }
+    .facts div:nth-child(n+3) { border-top: 1px solid var(--border); }
+    .row { padding: 12px; min-height: 64px; }
+    .link { margin-left: 0; }
+    .stamp-extra { display: none; }
+  }
+
+  /* Sign-in: the only thing shown until the password is accepted. */
+  .app.locked .greeting, .app.locked .tabs, .app.locked .work, .app.locked .cvs, .app.locked .stamp { display: none; }
+  .login { display: none; max-width: 380px; margin: 14vh auto 0; }
+  .app.locked .login { display: block; }
+  .login h1 { margin-bottom: 6px; }
+  .login p { margin: 0 0 20px; color: var(--muted); font-size: 15px; line-height: 22px; }
+  .login label { display: block; font-weight: 500; margin-bottom: 6px; }
+  .login input[type="password"] {
+    display: block; width: 100%; height: 44px; padding: 0 12px; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius-control);
+  }
+  .login .btn { width: 100%; justify-content: center; height: 44px; margin-top: 14px; }
+  .login .error { margin: 12px 0 0; color: var(--pill-neg-ink); }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .signout { background: none; border: 0; padding: 0; margin-left: 4px; color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <header class="brand">
+    <div class="mark"><span class="sun" aria-hidden="true"></span>RADAR VIE</div>
+    <p class="stamp" id="stamp">Relève en attente</p>
+  </header>
+
+  <form class="login" id="login" autocomplete="on">
+    <h1>Connexion</h1>
+    <p>Entre ton mot de passe pour voir tes offres.</p>
+    <input class="visually-hidden" type="text" name="username" autocomplete="username" value="Samuel" tabindex="-1" aria-hidden="true">
+    <label for="password">Mot de passe</label>
+    <input type="password" id="password" name="password" autocomplete="current-password" required>
+    <button class="btn primary" type="submit" id="login-submit">Se connecter</button>
+    <p class="error" id="login-error" role="alert" hidden></p>
+  </form>
+
+  <section class="greeting">
+    <h1 id="hello">Bonjour Samuel</h1>
+    <p class="finding" id="finding">Les offres V.I.E. repérées chaque matin à 8h apparaissent ici, des grandes villes américaines à la Suède.</p>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Vues" id="tabs"></nav>
+
+  <div class="work" id="work">
+    <div class="list" id="list" aria-live="polite">
+      <div class="band"><ul>
+        <li><div class="row"><span class="skeleton" style="width:70%"></span><span></span><span class="skeleton" style="width:45%;height:12px"></span></div></li>
+        <li><div class="row"><span class="skeleton" style="width:60%"></span><span></span><span class="skeleton" style="width:40%;height:12px"></span></div></li>
+        <li><div class="row"><span class="skeleton" style="width:75%"></span><span></span><span class="skeleton" style="width:50%;height:12px"></span></div></li>
+      </ul></div>
+    </div>
+    <article class="detail" id="detail">
+      <span class="skeleton" style="width:60%;height:22px"></span>
+      <span class="skeleton" style="width:35%;margin-top:10px"></span>
+    </article>
+  </div>
+  <p class="cvs" id="cvs"></p>
+</div>
+
+<div class="reader" id="reader" role="dialog" aria-modal="true" aria-labelledby="reader-title" hidden>
+  <div class="reader-bar">
+    <button class="reader-close" id="reader-close"><span aria-hidden="true">←</span>Retour</button>
+    <p class="reader-title" id="reader-title"></p>
+    <button class="btn" id="reader-save" hidden>Enregistrer le PDF</button>
+  </div>
+  <div class="reader-body" id="reader-body"></div>
+</div>
+
+<script>
+(() => {
+  const VIEWS = [
+    { id: "a_trier", label: "À trier" },
+    { id: "validee", label: "Validées" },
+    { id: "postulee", label: "Postulées" },
+    { id: "passee", label: "Passées" },
+  ];
+  const BANDS = {
+    1: "New York, Washington, San Francisco",
+    2: "Autres grandes villes américaines",
+    3: "Reste des États-Unis et Canada",
+    4: "Royaume-Uni, Irlande, Australie, Nouvelle-Zélande",
+    5: "Italie, Norvège, Suède",
+  };
+  const state = { offres: [], meta: null, docs: null, view: "a_trier", selectedId: null, reading: false, status: "loading" };
+
+  const $ = (id) => document.getElementById(id);
+
+  // Every call goes to this app's own API with the session cookie. A 401 means signed out.
+  class SignedOut extends Error {}
+  async function api(path, { method = "GET", body } = {}) {
+    const res = await fetch(path, {
+      method, credentials: "same-origin",
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (res.status === 401) throw new SignedOut();
+    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+    return res.json();
+  }
+  const fileUrl = (id) => (id ? "/api/files/" + encodeURIComponent(id) : "");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const euros = (n) => (typeof n === "number" ? new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n) + " €" : "—");
+  const parseDay = (iso) => { if (!iso) return null; const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number); return y ? new Date(y, m - 1, d) : null; };
+  const today = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
+  const dayLabel = (iso, opts = { day: "numeric", month: "short" }) => { const d = parseDay(iso); return d ? new Intl.DateTimeFormat("fr-FR", opts).format(d) : "—"; };
+  const daysLeft = (iso) => { const d = parseDay(iso); return d ? Math.round((d - today()) / 86400000) : null; };
+  const left = (n) => (n === null ? "" : n < 0 ? "expirée" : n === 0 ? "expire aujourd'hui" : n === 1 ? "expire demain" : `dans ${n} j`);
+  const isToday = (iso) => { const d = parseDay(iso); return d && +d === +today(); };
+
+  const inView = (view) => state.offres.filter((o) => (o.statut || "a_trier") === view);
+  const sorted = (rows) => rows.slice().sort((a, b) =>
+    (a.priorite ?? 9) - (b.priorite ?? 9) || (b.score ?? 0) - (a.score ?? 0) || String(b.publiee_le || "").localeCompare(String(a.publiee_le || "")));
+
+  function renderTabs() {
+    $("tabs").innerHTML = VIEWS.map((v) => {
+      const n = inView(v.id).length;
+      return `<button class="tab" role="tab" id="tab-${v.id}" aria-selected="${v.id === state.view}" data-view="${v.id}">${v.label}<b class="num">${state.status === "ready" ? n : ""}</b></button>`;
+    }).join("");
+  }
+
+  function renderGreeting() {
+    const hour = new Date().getHours();
+    $("hello").textContent = hour >= 18 ? "Bonsoir Samuel" : "Bonjour Samuel";
+    if (state.status !== "ready") return;
+    const todo = inView("a_trier");
+    const fresh = todo.filter((o) => isToday(o.ajoutee_le));
+    const dream = fresh.filter((o) => o.priorite === 1).length;
+    const soon = sorted(inView("a_trier").concat(inView("validee"))).filter((o) => { const n = daysLeft(o.expire_le); return n !== null && n >= 0 && n <= 4; })
+      .sort((a, b) => daysLeft(a.expire_le) - daysLeft(b.expire_le))[0];
+    const waiting = inView("validee").filter((o) => !o.lettre_id).length;
+    const parts = [];
+    if (fresh.length) parts.push(`${fresh.length} nouvelle${fresh.length > 1 ? "s" : ""} offre${fresh.length > 1 ? "s" : ""} ce matin${dream ? `, dont ${dream} à New York, Washington ou San Francisco` : ""}.`);
+    else if (todo.length) parts.push(`Pas de nouvelle offre ce matin. ${todo.length} offre${todo.length > 1 ? "s" : ""} attend${todo.length > 1 ? "ent" : ""} encore ton avis.`);
+    else parts.push("Rien à trier pour l'instant.");
+    if (soon) parts.push(`${soon.entreprise} (${soon.ville}) ${left(daysLeft(soon.expire_le))}.`);
+    if (waiting) parts.push(`${waiting} lettre${waiting > 1 ? "s" : ""} en préparation pour le prochain passage, à 12h ou 19h.`);
+    $("finding").textContent = parts.join(" ");
+  }
+
+  function renderStamp() {
+    const m = state.meta;
+    if (!m || !m.date) { $("stamp").textContent = state.status === "ready" ? "Première relève demain à 8h" : "Relève en attente"; return; }
+    const d = new Date(m.date);
+    const when = isToday(m.date.slice(0, 10)) ? "aujourd'hui" : new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(d);
+    const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(d);
+    $("stamp").innerHTML = `Relève ${when} à ${time}<span class="stamp-extra"> · ${m.analysees ?? 0} offres lues</span>`;
+  }
+
+  function rowHtml(o) {
+    const n = daysLeft(o.expire_le);
+    const urgent = n !== null && n >= 0 && n <= 3 && (o.statut || "a_trier") !== "postulee";
+    let right = `<span class="p num">${euros(o.indemnite)}/mois</span>`;
+    if (urgent) right = `<span class="p"><span class="pill neg">${left(n)}</span></span>`;
+    if (o.statut === "validee" && o.lettre_id) right = `<span class="p"><span class="pill pos">Lettre prête</span></span>`;
+    if (o.statut === "postulee") right = `<span class="p num">postulé le ${dayLabel(o.postule_le)}</span>`;
+    return `<li><button class="row" data-id="${esc(o.id)}" aria-current="${o.id === state.selectedId}">
+      <span class="t">${esc(o.titre)}</span><span class="s num">${o.score ?? "—"}</span>
+      <span class="w">${esc(o.entreprise)} · ${esc(o.ville)}, ${esc(o.pays)}</span>${right}
+    </button></li>`;
+  }
+
+  function renderList() {
+    const list = $("list");
+    if (state.status === "error") {
+      list.innerHTML = `<div class="empty"><strong>Impossible de lire les offres</strong>La liste n'a pas pu se charger. <button class="btn" id="retry" style="margin-top:10px">Réessayer</button></div>`;
+      return;
+    }
+    if (state.status !== "ready") return;
+    const rows = sorted(inView(state.view));
+    if (!rows.length) {
+      const msg = {
+        a_trier: ["Rien à trier", "La prochaine relève passe demain à 8h. Les offres qui collent à ton profil arriveront ici et par mail."],
+        validee: ["Aucune offre validée", "Valide une offre dans « À trier » : sa lettre de motivation se prépare au passage suivant, à 12h ou 19h."],
+        postulee: ["Aucune candidature envoyée", "Quand tu as postulé, clique sur « J'ai postulé » pour garder la trace ici."],
+        passee: ["Aucune offre passée", "Les offres que tu écartes restent ici, au cas où tu changes d'avis."],
+      }[state.view];
+      list.innerHTML = `<div class="empty"><strong>${msg[0]}</strong>${msg[1]}</div>`;
+      return;
+    }
+    const groups = {};
+    rows.forEach((o) => { (groups[o.priorite] ||= []).push(o); });
+    list.innerHTML = Object.keys(groups).sort((a, b) => a - b).map((k) =>
+      `<section class="band"><h2>${esc(BANDS[k] || "Autres pays")}</h2><ul>${groups[k].map(rowHtml).join("")}</ul></section>`).join("");
+  }
+
+  function actionsHtml(o) {
+    const st = o.statut || "a_trier";
+    const offer = `<a class="link" href="${esc(o.lien)}" target="_blank" rel="noopener">Voir l'offre ↗</a>`;
+    if (st === "a_trier") return `<button class="btn primary" data-act="validee">Valider</button><button class="btn" data-act="passee">Passer</button>${offer}`;
+    if (st === "passee") return `<button class="btn" data-act="a_trier">Remettre à trier</button>${offer}`;
+    if (st === "postulee") return `<p class="note">Candidature envoyée le ${dayLabel(o.postule_le, { day: "numeric", month: "long" })}.</p>${o.lettre_id ? `<button class="btn" ${letterAttrs(o)}>Ouvrir la lettre</button>` : ""}${offer}`;
+    const letter = o.lettre_id
+      ? `<button class="btn primary" ${letterAttrs(o)}>Ouvrir la lettre (PDF)</button>`
+      : `<p class="note">La lettre se prépare au prochain passage, à 12h ou 19h.</p>`;
+    return `${letter}<button class="btn" data-act="postulee">J'ai postulé</button><button class="btn" data-act="a_trier">Annuler</button>${offer}`;
+  }
+
+  function renderDetail() {
+    const box = $("detail");
+    const o = state.offres.find((x) => x.id === state.selectedId);
+    if (state.status !== "ready" || !o) {
+      if (state.status === "ready") box.innerHTML = `<p class="note">Choisis une offre dans la liste pour voir le détail.</p>`;
+      if (state.status === "nodb" || state.status === "error") box.innerHTML = `<p class="note">Le détail des offres s'affiche ici.</p>`;
+      return;
+    }
+    const n = daysLeft(o.expire_le);
+    const have = (o.competences || []).filter((c) => !(o.competences_manquantes || []).includes(c));
+    const miss = (o.competences_manquantes || []);
+    const score = Math.max(0, Math.min(100, o.score || 0));
+    const sobre = o.cv_conseille === "sobre";
+    const cvUrl = state.docs && (sobre ? state.docs.cv_sobre_id : state.docs.cv_dune_id);
+    box.innerHTML = `
+      <button class="back" id="back"><span aria-hidden="true">←</span>Toutes les offres</button>
+      <h2>${esc(o.titre)}</h2>
+      <p class="where">${esc(o.entreprise)} · ${esc(o.ville)}, ${esc(o.pays)} · publiée le ${dayLabel(o.publiee_le, { day: "numeric", month: "long" })}</p>
+      <dl class="facts">
+        <div><dt>Indemnité</dt><dd class="num">${euros(o.indemnite)} <small>/mois</small></dd></div>
+        <div><dt>Durée</dt><dd class="num">${o.duree_mois ?? "—"} <small>mois</small></dd></div>
+        <div><dt>Début</dt><dd>${dayLabel(o.debut, { month: "short", year: "numeric" })}</dd></div>
+        <div><dt>Expire le</dt><dd class="num">${dayLabel(o.expire_le)} <small>${left(n)}</small></dd></div>
+      </dl>
+      <div class="match">
+        <span class="score num">${o.score ?? "—"}<small> /100</small></span>
+        <div class="bar" role="img" aria-label="Correspondance avec ton profil : ${score} sur 100"><i style="width:${score}%"></i></div>
+        <p>${esc(o.pourquoi)}</p>
+      </div>
+      <div class="block"><h3>La mission</h3><p>${esc(o.resume)}</p></div>
+      <div class="block"><h3>Compétences demandées</h3>
+        <ul class="skills">${have.map((c) => `<li>${esc(c)}</li>`).join("")}${miss.map((c) => `<li class="miss">${esc(c)}</li>`).join("")}</ul>
+        ${miss.length ? `<p class="skills-note">En pointillé : ce qui n'est pas encore sur ton CV.</p>` : ""}
+      </div>
+      <div class="block"><h3>Pour postuler</h3>
+        <p>CV à joindre : <strong>${sobre ? "la version sobre, pour un portail d'entreprise" : "le CV Dune"}</strong>.${o.pieces ? ` L'offre demande aussi : ${esc(o.pieces)}` : ""}</p>
+        ${cvUrl ? `<button class="btn cv" ${cvAttrs(sobre)}>Ouvrir ${sobre ? "le CV sobre" : "le CV Dune"} (PDF)</button>` : ""}
+        ${o.complements ? `<div class="copy"><pre id="extra">${esc(o.complements)}</pre><button class="btn" id="copy">Copier</button></div>` : ""}
+      </div>
+      <div class="actions">${actionsHtml(o)}</div>`;
+  }
+
+  function renderCvs() {
+    const d = state.docs;
+    const cvs = d && d.cv_dune_id ? `Tes CV : <button ${cvAttrs(false)}>CV Dune</button> · <button ${cvAttrs(true)}>CV sobre</button> · ` : "";
+    $("cvs").innerHTML = `${cvs}<button class="signout" id="signout">Se déconnecter</button>`;
+  }
+
+  const fileSlug = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "") || "Offre";
+  function letterAttrs(o) {
+    return `data-pdf="${esc(fileUrl(o.lettre_id))}" data-title="${esc("Lettre · " + o.entreprise)}" data-file="${esc("Samuel_Ballu_Cover_Letter_" + fileSlug(o.entreprise) + ".pdf")}"`;
+  }
+  function cvAttrs(sobre) {
+    const d = state.docs || {};
+    const url = fileUrl(sobre ? d.cv_sobre_id : d.cv_dune_id);
+    return `data-pdf="${esc(url)}" data-title="${sobre ? "CV sobre" : "CV Dune"}" data-file="${sobre ? "Samuel_Ballu_CV.pdf" : "Samuel_Ballu_CV_Dune.pdf"}"`;
+  }
+
+  function render() {
+    renderStamp(); renderGreeting(); renderTabs(); renderList(); renderDetail(); renderCvs();
+    $("work").classList.toggle("reading", state.reading);
+    $("app").classList.toggle("reading", state.reading);
+    $("app").classList.toggle("locked", state.status === "login");
+  }
+
+  function pickFirst() {
+    const rows = sorted(inView(state.view));
+    if (!rows.some((o) => o.id === state.selectedId)) state.selectedId = rows[0]?.id ?? null;
+  }
+
+  // On a phone an open offer replaces the list. Opening it adds a history entry, so the phone's own back
+  // gesture (or Android's back button) returns to the list; the sticky bar and a swipe to the right do the same.
+  const phone = window.matchMedia("(max-width: 860px)");
+  let pushed = false, listY = 0;
+  try { history.scrollRestoration = "manual"; } catch {}
+
+  function openOffer(id) {
+    state.selectedId = id;
+    if (!phone.matches) { state.reading = true; render(); window.scrollTo({ top: 0 }); return; }
+    if (!state.reading) listY = window.scrollY;
+    if (!pushed) { try { history.pushState({ radarOffre: id }, ""); pushed = true; } catch { pushed = false; } }
+    state.reading = true; render(); window.scrollTo({ top: 0 });
+  }
+
+  function closeOffer(fromHistory) {
+    if (!state.reading) return;
+    state.reading = false; render();
+    if (phone.matches) window.scrollTo({ top: listY });
+    if (pushed && !fromHistory) { pushed = false; try { history.back(); } catch {} }
+  }
+
+  // The PDF reader. The file is fetched from inside the page and drawn page by page with pdf.js; if pdf.js
+  // cannot load, the browser's own viewer shows it in a frame. On a phone it also takes a history entry.
+  const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+  let pdfjs = null, reader = null, readerPushed = false, skipPop = false, readerToken = 0;
+
+  function loadPdfjs() {
+    if (!pdfjs) pdfjs = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = PDFJS + "pdf.min.js";
+      s.onload = () => {
+        const lib = window.pdfjsLib;
+        if (!lib) { pdfjs = null; reject(new Error("pdfjs")); return; }
+        lib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js";
+        resolve(lib);
+      };
+      s.onerror = () => { pdfjs = null; reject(new Error("pdfjs")); };
+      document.head.appendChild(s);
+    });
+    return pdfjs;
+  }
+
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
+
+  async function drawPdf(bytes, body, token) {
+    const lib = await withTimeout(loadPdfjs(), 15000);
+    const doc = await withTimeout(lib.getDocument({ data: bytes, isEvalSupported: false }).promise, 15000);
+    const cssW = Math.min(body.clientWidth - 32, 860);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    for (let i = 1; i <= doc.numPages; i++) {
+      if (token !== readerToken) return;
+      const page = await doc.getPage(i);
+      const base = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: (cssW / base.width) * dpr });
+      const c = document.createElement("canvas");
+      c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+      c.style.width = cssW + "px"; c.style.height = Math.round((cssW * base.height) / base.width) + "px";
+      c.setAttribute("role", "img"); c.setAttribute("aria-label", `Page ${i} sur ${doc.numPages}`);
+      await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+      if (i === 1) body.replaceChildren(c); else body.appendChild(c);
+    }
+  }
+
+  async function openReader(btn) {
+    const token = ++readerToken;
+    reader = { url: btn.dataset.pdf, title: btn.dataset.title, file: btn.dataset.file, blob: null };
+    $("reader-title").textContent = reader.title;
+    $("reader-save").hidden = true;
+    $("reader-save").disabled = false; $("reader-save").textContent = "Enregistrer le PDF";
+    const body = $("reader-body");
+    body.innerHTML = `<p class="reader-msg">Ouverture du PDF…</p>`;
+    $("reader").hidden = false;
+    document.documentElement.classList.add("reader-open");
+    if (phone.matches && !readerPushed) { try { history.pushState({ radarPdf: true }, ""); readerPushed = true; } catch { readerPushed = false; } }
+    $("reader-close").focus();
+
+    let res;
+    try { res = await fetch(reader.url); } catch { res = null; }
+    if (token !== readerToken) return;
+    if (res && res.status === 401) { closeReader(false); signedOut(); return; }
+    if (!res || !res.ok) {
+      body.innerHTML = `<p class="reader-msg">${res && res.status === 404
+        ? "Ce PDF est introuvable. Dis-le à Claude pour qu'il le remette en ligne."
+        : "Le PDF n'a pas pu se charger. Vérifie ta connexion et réessaie."}</p>`;
+      return;
+    }
+    const buf = await res.arrayBuffer();
+    if (token !== readerToken) return;
+    reader.blob = new Blob([buf], { type: "application/pdf" });
+    $("reader-save").hidden = false;
+    try {
+      await drawPdf(new Uint8Array(buf.slice(0)), body, token);
+    } catch {
+      if (token !== readerToken) return;
+      const frame = document.createElement("iframe");
+      frame.title = reader.title; frame.src = reader.url;
+      body.replaceChildren(frame);
+    }
+  }
+
+  function closeReader(fromHistory) {
+    if ($("reader").hidden) return;
+    readerToken++; reader = null;
+    $("reader").hidden = true; $("reader-body").replaceChildren();
+    document.documentElement.classList.remove("reader-open");
+    if (fromHistory) readerPushed = false;
+    else if (readerPushed) { readerPushed = false; skipPop = true; try { history.back(); } catch { skipPop = false; } }
+  }
+
+  // On a phone the share sheet offers "Save to Files", ready to attach to an application.
+  // Elsewhere the file downloads.
+  async function saveReader() {
+    if (!reader || !reader.blob) return;
+    const file = new File([reader.blob], reader.file, { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; }
+      catch (err) { if (err && err.name === "AbortError") return; }
+    }
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(file); link.download = reader.file;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  }
+
+  window.addEventListener("popstate", () => {
+    if (skipPop) { skipPop = false; return; }
+    if (!$("reader").hidden) { readerPushed = false; closeReader(true); return; }
+    pushed = false; closeOffer(true);
+  });
+
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("reader").hidden) closeReader(false); });
+
+  let touch = null;
+  document.addEventListener("touchstart", (e) => {
+    touch = (state.reading || !$("reader").hidden) && phone.matches && e.touches.length === 1
+      ? { x: e.touches[0].clientX, y: e.touches[0].clientY, at: Date.now() } : null;
+  }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (!touch) return;
+    const t = e.changedTouches[0], dx = t.clientX - touch.x, dy = t.clientY - touch.y, quick = Date.now() - touch.at < 700;
+    touch = null;
+    if (!(quick && dx > 80 && Math.abs(dy) < dx / 2)) return;
+    if (!$("reader").hidden) closeReader(false); else closeOffer(false);
+  }, { passive: true });
+
+  document.addEventListener("click", async (e) => {
+    const pdf = e.target.closest("[data-pdf]");
+    if (pdf) { openReader(pdf); return; }
+    if (e.target.closest("#reader-close")) { closeReader(false); return; }
+    if (e.target.closest("#reader-save")) { saveReader(); return; }
+    const tab = e.target.closest(".tab");
+    if (tab) { closeOffer(false); state.view = tab.dataset.view; pickFirst(); render(); return; }
+    const row = e.target.closest(".row[data-id]");
+    if (row) { openOffer(row.dataset.id); return; }
+    if (e.target.closest("#back")) { closeOffer(false); return; }
+    if (e.target.closest("#retry")) { load(); return; }
+    if (e.target.closest("#signout")) {
+      try { await fetch("/api/logout", { method: "POST", credentials: "same-origin" }); } catch {}
+      signedOut(); return;
+    }
+    if (e.target.closest("#copy")) {
+      const text = $("extra").textContent; const btn = $("copy");
+      try { await navigator.clipboard.writeText(text); btn.textContent = "Copié"; }
+      catch { const r = document.createRange(); r.selectNodeContents($("extra")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = "Sélectionné"; }
+      return;
+    }
+    const act = e.target.closest("[data-act]");
+    if (act && state.selectedId) {
+      const id = state.selectedId;
+      act.disabled = true;
+      try {
+        const updated = await api("/api/offers/" + encodeURIComponent(id), { method: "PATCH", body: { statut: act.dataset.act } });
+        state.offres = state.offres.map((o) => (o.id === id ? updated : o));
+        pickFirst();
+        if (state.reading) closeOffer(false); else render();
+      } catch (err) {
+        if (err instanceof SignedOut) { signedOut(); return; }
+        act.disabled = false;
+        act.insertAdjacentHTML("afterend", `<p class="note" style="flex-basis:100%">Le changement n'a pas été enregistré. Réessaie dans un instant.</p>`);
+      }
+    }
+  });
+
+  // Loading. The list is fetched on open, when the app comes back to the foreground,
+  // and every two minutes while it is on screen (the agents write at 8h, 12h and 19h).
+  const optional = (p) => p.catch((err) => { if (err instanceof SignedOut) throw err; return null; });
+  let loading = null;
+
+  function signedOut() {
+    state.status = "login"; state.offres = []; state.reading = false;
+    render();
+    setTimeout(() => $("password").focus(), 0);
+  }
+
+  function load() {
+    if (loading) return loading;
+    loading = (async () => {
+      try {
+        const [offres, meta, docs] = await Promise.all([api("/api/offers"), optional(api("/api/meta/releve")), optional(api("/api/meta/documents"))]);
+        state.offres = offres; state.meta = meta; state.docs = docs;
+        state.status = "ready"; pickFirst();
+      } catch (err) {
+        if (err instanceof SignedOut) { signedOut(); return; }
+        if (state.status !== "ready") state.status = "error";
+      } finally {
+        loading = null;
+      }
+      render();
+    })();
+    return loading;
+  }
+
+  $("login").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const error = $("login-error"), submit = $("login-submit");
+    error.hidden = true; submit.disabled = true;
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: $("password").value }),
+      });
+      if (res.ok) { $("password").value = ""; state.status = "loading"; render(); await load(); return; }
+      error.textContent = {
+        401: "Mot de passe incorrect.",
+        429: "Trop d'essais. Réessaie dans 15 minutes.",
+        503: "La connexion n'est pas encore configurée.",
+      }[res.status] || "La connexion a échoué. Réessaie dans un instant.";
+    } catch {
+      error.textContent = "Pas de réseau. Réessaie quand tu es connecté.";
+    } finally {
+      submit.disabled = false;
+    }
+    error.hidden = false;
+  });
+
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && state.status === "ready") load(); });
+  setInterval(() => { if (document.visibilityState === "visible" && state.status === "ready") load(); }, 120000);
+
+  render();
+  load();
+})();
+</script>
+</body>
+</html>

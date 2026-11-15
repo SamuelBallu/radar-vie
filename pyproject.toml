@@ -1,0 +1,29 @@
+[project]
+name = "radar-vie"
+version = "1.0.0"
+description = "My daily V.I.E. job radar: offers found and scored every morning, cover letters written for the ones I pick."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.4",
+    "argon2-cffi>=23.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.27",
+    "uvicorn[standard]>=0.30",
+]
+
+[tool.vercel]
+entrypoint = "app.main:app"
+
+# Serve public/ (the page) from Vercel's CDN; only /api/* reaches the function.
+[tool.vercel.fastapi.static]
+cdn = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
