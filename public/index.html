@@ -118,6 +118,11 @@
 
   /* The open offer */
   .detail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; min-width: 0; }
+  /* On a wide screen the open offer stays beside the part of the list being read, so a long list never
+     sends the reader back to the top to see the detail. It scrolls on its own if taller than the window. */
+  @media (min-width: 861px) {
+    .detail { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+  }
   .back { display: none; }
   .detail h2 { margin: 0; font-size: var(--fs-h2); line-height: 26px; font-weight: 600; text-wrap: balance; }
   .where { margin: 4px 0 0; color: var(--muted); }
@@ -474,6 +479,14 @@
     $("app").classList.toggle("locked", state.status === "login");
   }
 
+  // The offer that followed the one just moved: the next in the same band, or the next band's first.
+  function selectNext(before, id) {
+    const remaining = new Set(sorted(inView(state.view)).map((o) => o.id));
+    const at = before.indexOf(id);
+    const next = before.slice(at + 1).find((x) => remaining.has(x)) ?? before.slice(0, at).reverse().find((x) => remaining.has(x));
+    state.selectedId = next ?? null;
+  }
+
   function pickFirst() {
     const rows = sorted(inView(state.view));
     if (!rows.some((o) => o.id === state.selectedId)) state.selectedId = rows[0]?.id ?? null;
@@ -487,7 +500,7 @@
 
   function openOffer(id) {
     state.selectedId = id;
-    if (!phone.matches) { state.reading = true; render(); window.scrollTo({ top: 0 }); return; }
+    if (!phone.matches) { state.reading = true; render(); $("detail").scrollTop = 0; return; }
     if (!state.reading) listY = window.scrollY;
     if (!pushed) { try { history.pushState({ radarOffre: id }, ""); pushed = true; } catch { pushed = false; } }
     state.reading = true; render(); window.scrollTo({ top: 0 });
@@ -648,12 +661,17 @@
     const act = e.target.closest("[data-act]");
     if (act && state.selectedId) {
       const id = state.selectedId;
+      const before = sorted(inView(state.view)).map((o) => o.id);
       act.disabled = true;
       try {
         const updated = await api("/api/offers/" + encodeURIComponent(id), { method: "PATCH", body: { statut: act.dataset.act } });
         state.offres = state.offres.map((o) => (o.id === id ? updated : o));
-        pickFirst();
-        if (state.reading) closeOffer(false); else render();
+        selectNext(before, id);
+        if (phone.matches && state.reading) { closeOffer(false); return; }
+        render();
+        $("detail").scrollTop = 0;
+        const row = document.querySelector(`.row[data-id="${CSS.escape(String(state.selectedId))}"]`);
+        if (row) row.scrollIntoView({ block: "nearest" });
       } catch (err) {
         if (err instanceof SignedOut) { signedOut(); return; }
         act.disabled = false;
