@@ -17,9 +17,12 @@ from .db import get_db
 app = FastAPI(title="Radar VIE", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
 
 PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
-STATUSES = ("a_trier", "validee", "postulee", "passee")
+STATUSES = ("a_trier", "validee", "postulee", "refusee", "passee")
 # Fields the API exposes from the owner's columns, under the names the page uses.
-OWNER_FIELDS = {"statut", "valide_le", "postule_le"}
+OWNER_FIELDS = {"statut", "valide_le", "postule_le", "entretiens", "refuse_le"}
+# What the page may change: its owner's decisions, never the agents' data.
+PAGE_FIELDS = {"statut", "entretiens"}
+MAX_INTERVIEWS = 30
 MAX_FILE_BYTES = 4_000_000  # Vercel caps a request body at 4.5 MB
 FAILED_LOGINS_PER_IP = 8
 FAILED_LOGINS_TOTAL = 40
@@ -47,6 +50,8 @@ def offer_out(row: dict) -> dict:
     out["statut"] = row["status"]
     out["valide_le"] = row["validated_at"].astimezone(UTC).isoformat() if row["validated_at"] else None
     out["postule_le"] = row["applied_at"].isoformat() if row["applied_at"] else None
+    out["entretiens"] = row["interviews"]
+    out["refuse_le"] = row["refused_at"].isoformat() if row["refused_at"] else None
     return out
 
 
@@ -139,13 +144,23 @@ def put_offer(offer_id: str, conn: Db, body: Annotated[dict[str, Any], Body()]) 
     return offer_out(row)
 
 
+def interview_dates(value: Any) -> list[str]:
+    """A list of interview dates (YYYY-MM-DD), kept in order."""
+    if not isinstance(value, list) or len(value) > MAX_INTERVIEWS:
+        raise HTTPException(422, f"Interviews must be a list of at most {MAX_INTERVIEWS} dates.")
+    try:
+        return sorted(date.fromisoformat(str(d)[:10]).isoformat() for d in value)
+    except ValueError:
+        raise HTTPException(422, "Each interview must be a date, YYYY-MM-DD.") from None
+
+
 @app.patch("/api/offers/{offer_id}")
 def patch_offer(offer_id: str, caller: Caller, conn: Db, body: Annotated[dict[str, Any], Body()]) -> dict:
-    """The owner may only change the status. Agents may also change data fields
+    """The owner may change the status and the interview dates. Agents may also change data fields
     (a null value removes the field) and set the decision dates when importing."""
     offer_or_404(conn, offer_id)
-    if caller == "owner" and set(body) - {"statut"}:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the status can be changed from the page.")
+    if caller == "owner" and set(body) - PAGE_FIELDS:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the status and the interviews can be changed from the page.")
 
     sets: list[str] = []
     params: list[Any] = []
@@ -158,14 +173,22 @@ def patch_offer(offer_id: str, caller: Caller, conn: Db, body: Annotated[dict[st
         if new_status == "validee" and "valide_le" not in body:
             sets.append("validated_at = now()")
         if new_status == "postulee" and "postule_le" not in body:
-            sets.append("applied_at = (now() AT TIME ZONE %s)::date")
+            sets.append("applied_at = COALESCE(applied_at, (now() AT TIME ZONE %s)::date)")
             params.append(get_settings().timezone)
+        if new_status == "refusee":
+            sets.append("refused_at = (now() AT TIME ZONE %s)::date")
+            params.append(get_settings().timezone)
+        else:
+            sets.append("refused_at = NULL")
     if "valide_le" in body:
         sets.append("validated_at = %s")
         params.append(datetime.fromisoformat(body["valide_le"]) if body["valide_le"] else None)
     if "postule_le" in body:
         sets.append("applied_at = %s")
         params.append(date.fromisoformat(body["postule_le"][:10]) if body["postule_le"] else None)
+    if "entretiens" in body:
+        sets.append("interviews = %s")
+        params.append(Jsonb(interview_dates(body["entretiens"])))
 
     fields = {k: v for k, v in body.items() if k not in OWNER_FIELDS | {"id"}}
     removed = [k for k, v in fields.items() if v is None]

@@ -158,6 +158,16 @@
   .copy { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; }
   .copy pre { margin: 0; flex: 1; min-width: 0; white-space: pre-wrap; font: inherit; background: var(--raised); border-radius: var(--radius-control); padding: 10px 12px; }
 
+  .interviews { margin-top: 20px; padding: 14px 16px; background: var(--raised); border-radius: var(--radius-card); }
+  .interviews h3 { margin-bottom: 4px; }
+  .itv-status { color: var(--muted); }
+  .itv { margin: 8px 0 0; padding: 0; list-style: none; }
+  .itv li { padding: 6px 0; border-top: 1px solid var(--rule); }
+  .itv li:first-child { border-top: 0; }
+  .itv li .num { display: inline-block; min-width: 34px; font-weight: 600; }
+  .itv-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; }
+  .itv-add label { color: var(--muted); }
+  .itv-add input[type="date"] { height: 36px; padding: 0 10px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius-control); }
   .btn.cv { margin-top: 10px; }
   .cvs { margin: 28px 0 0; color: var(--muted); font-size: 13px; }
   .cvs a { color: var(--text); font-weight: 500; text-underline-offset: 3px; }
@@ -291,6 +301,7 @@
     { id: "a_trier", label: "À trier" },
     { id: "validee", label: "Validées" },
     { id: "postulee", label: "Postulées" },
+    { id: "refusee", label: "Refusées" },
     { id: "passee", label: "Passées" },
   ];
   const BANDS = {
@@ -367,11 +378,15 @@
 
   function rowHtml(o) {
     const n = daysLeft(o.expire_le);
-    const urgent = n !== null && n >= 0 && n <= 3 && (o.statut || "a_trier") !== "postulee";
+    const urgent = n !== null && n >= 0 && n <= 3 && !["postulee", "refusee"].includes(o.statut);
+    const itv = (o.entretiens || []).length;
     let right = `<span class="p num">${euros(o.indemnite)}/mois</span>`;
     if (urgent) right = `<span class="p"><span class="pill neg">${left(n)}</span></span>`;
     if (o.statut === "validee" && o.lettre_id) right = `<span class="p"><span class="pill pos">Lettre prête</span></span>`;
-    if (o.statut === "postulee") right = `<span class="p num">postulé le ${dayLabel(o.postule_le)}</span>`;
+    if (o.statut === "postulee") right = itv
+      ? `<span class="p"><span class="pill pos">${itv} entretien${itv > 1 ? "s" : ""}</span></span>`
+      : `<span class="p num">postulé le ${dayLabel(o.postule_le)}</span>`;
+    if (o.statut === "refusee") right = `<span class="p num">refusé le ${dayLabel(o.refuse_le)}</span>`;
     return `<li><button class="row" data-id="${esc(o.id)}" aria-current="${o.id === state.selectedId}">
       <span class="t">${esc(o.titre)}</span><span class="s num">${o.score ?? "—"}</span>
       <span class="w">${esc(o.entreprise)} · ${esc(o.ville)}, ${esc(o.pays)}</span>${right}
@@ -391,6 +406,7 @@
         a_trier: ["Rien à trier", "La prochaine relève passe demain à 8h. Les offres qui collent à ton profil arriveront ici et par mail."],
         validee: ["Aucune offre validée", "Valide une offre dans « À trier » : sa lettre de motivation se prépare au passage suivant, à 12h ou 19h."],
         postulee: ["Aucune candidature envoyée", "Quand tu as postulé, clique sur « J'ai postulé » pour garder la trace ici."],
+        refusee: ["Aucun refus", "Quand une candidature n'aboutit pas, clique sur « Refusé » : elle arrive ici, avec ses entretiens."],
         passee: ["Aucune offre passée", "Les offres que tu écartes restent ici, au cas où tu changes d'avis."],
       }[state.view];
       list.innerHTML = `<div class="empty"><strong>${msg[0]}</strong>${msg[1]}</div>`;
@@ -407,11 +423,48 @@
     const offer = `<a class="link" href="${esc(o.lien)}" target="_blank" rel="noopener">Voir l'offre ↗</a>`;
     if (st === "a_trier") return `<button class="btn primary" data-act="validee">Valider</button><button class="btn" data-act="passee">Passer</button>${offer}`;
     if (st === "passee") return `<button class="btn" data-act="a_trier">Remettre à trier</button>${offer}`;
-    if (st === "postulee") return `<p class="note">Candidature envoyée le ${dayLabel(o.postule_le, { day: "numeric", month: "long" })}.</p>${o.lettre_id ? `<button class="btn" ${letterAttrs(o)}>Ouvrir la lettre</button>` : ""}${offer}`;
+    if (st === "postulee") return `${o.lettre_id ? `<button class="btn" ${letterAttrs(o)}>Ouvrir la lettre</button>` : ""}<button class="btn" data-act="refusee">Refusé</button>${offer}`;
+    if (st === "refusee") return `<button class="btn" data-act="postulee">Remettre en postulée</button>${offer}`;
     const letter = o.lettre_id
       ? `<button class="btn primary" ${letterAttrs(o)}>Ouvrir la lettre (PDF)</button>`
       : `<p class="note">La lettre se prépare au prochain passage, à 12h ou 19h.</p>`;
     return `${letter}<button class="btn" data-act="postulee">J'ai postulé</button><button class="btn" data-act="a_trier">Annuler</button>${offer}`;
+  }
+
+  // Interviews: a dated list for an application, added on the day (or after) and kept when refused.
+  const ordinal = (i) => (i === 1 ? "1er" : `${i}e`);
+  const isoToday = () => { const t = today(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`; };
+  function interviewsHtml(o) {
+    if (!["postulee", "refusee"].includes(o.statut)) return "";
+    const dates = o.entretiens || [];
+    const long = { weekday: "long", day: "numeric", month: "long" };
+    const status = o.statut === "refusee"
+      ? `Refusé le ${dayLabel(o.refuse_le, { day: "numeric", month: "long" })}${dates.length ? `, après ${dates.length} entretien${dates.length > 1 ? "s" : ""}` : ", sans entretien"}.`
+      : `Candidature envoyée le ${dayLabel(o.postule_le, { day: "numeric", month: "long" })}.`;
+    const list = dates.length
+      ? `<ol class="itv">${dates.map((d, i) => `<li><span class="num">${ordinal(i + 1)}</span> entretien ${daysLeft(d) > 0 ? "prévu " : ""}le ${dayLabel(d, long)}</li>`).join("")}</ol>`
+      : `<p class="note">Pas encore d'entretien.</p>`;
+    const add = o.statut === "postulee" ? `
+        <div class="itv-add">
+          <label for="itv-date">Entretien le</label>
+          <input type="date" id="itv-date" value="${isoToday()}">
+          <button class="btn primary" id="itv-add">Ajouter</button>
+          ${dates.length ? `<button class="btn" id="itv-remove">Retirer le dernier</button>` : ""}
+        </div>` : "";
+    return `<div class="block interviews"><h3>Entretiens</h3><p class="itv-status">${status}</p>${list}${add}</div>`;
+  }
+
+  async function saveInterviews(id, dates, button) {
+    button.disabled = true;
+    try {
+      const updated = await api("/api/offers/" + encodeURIComponent(id), { method: "PATCH", body: { entretiens: dates } });
+      state.offres = state.offres.map((o) => (o.id === id ? updated : o));
+      render();
+    } catch (err) {
+      if (err instanceof SignedOut) { signedOut(); return; }
+      button.disabled = false;
+      button.insertAdjacentHTML("afterend", `<p class="note" style="flex-basis:100%">L'entretien n'a pas été enregistré. Réessaie dans un instant.</p>`);
+    }
   }
 
   function renderDetail() {
@@ -438,6 +491,7 @@
         <div><dt>Début</dt><dd>${dayLabel(o.debut, { month: "short", year: "numeric" })}</dd></div>
         <div><dt>Expire le</dt><dd class="num">${dayLabel(o.expire_le)} <small>${left(n)}</small></dd></div>
       </dl>
+      ${interviewsHtml(o)}
       <div class="match">
         <span class="score num">${o.score ?? "—"}<small> /100</small></span>
         <div class="bar" role="img" aria-label="Correspondance avec ton profil : ${score} sur 100"><i style="width:${score}%"></i></div>
@@ -656,6 +710,16 @@
       const text = $("extra").textContent; const btn = $("copy");
       try { await navigator.clipboard.writeText(text); btn.textContent = "Copié"; }
       catch { const r = document.createRange(); r.selectNodeContents($("extra")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = "Sélectionné"; }
+      return;
+    }
+    const current = state.offres.find((o) => o.id === state.selectedId);
+    if (current && e.target.closest("#itv-add")) {
+      const day = $("itv-date").value;
+      if (day) saveInterviews(current.id, [...(current.entretiens || []), day], e.target.closest("#itv-add"));
+      return;
+    }
+    if (current && e.target.closest("#itv-remove")) {
+      saveInterviews(current.id, (current.entretiens || []).slice(0, -1), e.target.closest("#itv-remove"));
       return;
     }
     const act = e.target.closest("[data-act]");

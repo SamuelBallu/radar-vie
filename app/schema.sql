@@ -46,3 +46,10 @@ CREATE TABLE IF NOT EXISTS postings (
     data        jsonb       NOT NULL DEFAULT '{}'::jsonb,
     fetched_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- 21/11/2026: interview tracking and the "refused" status, both the owner's.
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS interviews jsonb NOT NULL DEFAULT '[]'::jsonb;  -- dates, oldest first
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS refused_at date;
+ALTER TABLE offers DROP CONSTRAINT IF EXISTS offers_status_check;
+ALTER TABLE offers ADD CONSTRAINT offers_status_check
+    CHECK (status IN ('a_trier', 'validee', 'postulee', 'refusee', 'passee'));

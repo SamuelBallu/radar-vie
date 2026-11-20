@@ -20,7 +20,7 @@ def test_wrong_password_is_refused_then_slowed_down(anonymous):
 def test_owner_reads_offers_after_signing_in(owner, agent):
     agent.put("/api/offers/245148", json=OFFER)
     offers = owner.get("/api/offers").json()
-    assert offers == [OFFER | {"statut": "a_trier", "valide_le": None, "postule_le": None}]
+    assert offers == [OFFER | {"statut": "a_trier", "valide_le": None, "postule_le": None, "entretiens": [], "refuse_le": None}]
     assert owner.get("/api/session").json() == {"signed_in": True, "configured": True}
 
 
@@ -102,3 +102,27 @@ def test_postings_keep_the_full_text_for_agents_and_owner(owner, agent, anonymou
     assert owner.get("/api/postings/245148").json()["data"] == {"score": 71}
     assert anonymous.get("/api/postings/245148").status_code == 401
     assert agent.get("/api/postings/999").status_code == 404
+
+
+def test_owner_tracks_interviews_then_a_refusal(owner, agent):
+    agent.put("/api/offers/245148", json=OFFER)
+    owner.patch("/api/offers/245148", json={"statut": "postulee"})
+    one = owner.patch("/api/offers/245148", json={"entretiens": ["2026-11-27"]}).json()
+    two = owner.patch("/api/offers/245148", json={"entretiens": ["2026-12-04", "2026-11-27"]}).json()
+    assert one["entretiens"] == ["2026-11-27"]
+    assert two["entretiens"] == ["2026-11-27", "2026-12-04"]  # kept in date order
+    refused = owner.patch("/api/offers/245148", json={"statut": "refusee"}).json()
+    assert refused["statut"] == "refusee" and len(refused["refuse_le"]) == 10
+    assert refused["entretiens"] == two["entretiens"] and refused["postule_le"] == two["postule_le"]
+    # Undoing the refusal keeps the original application date.
+    back = owner.patch("/api/offers/245148", json={"statut": "postulee"}).json()
+    assert back["postule_le"] == two["postule_le"] and back["refuse_le"] is None
+
+
+def test_interviews_are_validated_and_agents_cannot_overwrite_them(owner, agent):
+    agent.put("/api/offers/245148", json=OFFER)
+    assert owner.patch("/api/offers/245148", json={"entretiens": ["demain"]}).status_code == 422
+    assert owner.patch("/api/offers/245148", json={"entretiens": "2026-11-27"}).status_code == 422
+    owner.patch("/api/offers/245148", json={"entretiens": ["2026-11-27"]})
+    again = agent.put("/api/offers/245148", json=OFFER | {"entretiens": [], "score": 80}).json()
+    assert again["entretiens"] == ["2026-11-27"] and again["score"] == 80
