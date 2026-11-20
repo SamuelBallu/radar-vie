@@ -1,0 +1,44 @@
+# Example profile for the morning run. Copy it outside the repository, fill it in, and point
+# RADAR_PROFILE at it. The real one holds personal criteria and stays private.
+
+search_url = "https://mon-vie-via.businessfrance.fr/offres/recherche?query&countriesIds=US&teletravail=0&porteEnv=0"
+state_file = "/path/to/etat.json"  # {"vues": [...]}: offer numbers already read
+min_score = 55
+notice_months = 3
+model = "qwen3.5:4b-q4_K_M"
+mail_to = "you@example.com"
+app_url = "https://your-app.vercel.app"
+skip_titles = ["BUYER", "ACCOUNTANT"]
+
+[role_titles]
+coeur = ["PROJECT MANAGER", "PRODUCT MANAGER", "SOLUTIONS ENGINEER", "PRE-SALES", "CONSULTANT"]
+data = ["DATA SCIENTIST", "AI ENGINEER", "DATA ANALYST"]
+acceptable = [" PMO ", "TRANSFORMATION"]
+
+[[priorities]]
+level = 1
+name = "New York"
+cities = ["NEW YORK"]
+
+[[priorities]]
+level = 2
+name = "Rest of the United States"
+countries = ["États-Unis"]
+
+[roles]
+coeur = { points = 50, definition = "project, product or pre-sales roles in AI or data" }
+data = { points = 35, definition = "data scientist, ML or AI engineer, data analyst" }
+acceptable = { points = 20, definition = "digital transformation or PMO with real data work" }
+hors_cible = { points = 0, definition = "no link with data, AI or digital" }
+
+[conditions]
+languages_ok = ["anglais", "francais", "english", "french"]
+sector_bonus = 5
+
+[skills]
+acquired = ["Python", "SQL", "React", "LLM", "Azure OpenAI", "anglais"]
+basics = ["OpenShift", "Docker"]
+
+[skills.synonyms]
+"IA générative" = "LLM"
+"English" = "anglais"

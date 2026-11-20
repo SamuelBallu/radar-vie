@@ -10,6 +10,7 @@ Reads RADAR_URL and RADAR_API_TOKEN from the environment, or from an env file
     radar.py put FILE.json              create or merge offers (one object with "id", or a list)
     radar.py patch ID JSON|FILE.json    merge fields; null removes a field
     radar.py delete ID
+    radar.py posting ID                 full text of an offer, as read by the morning run
     radar.py meta-get KEY
     radar.py meta-put KEY JSON|FILE.json
     radar.py upload FILE.pdf [NAME]     store a PDF, prints {"id", "url", "size"}
@@ -82,6 +83,8 @@ def main(argv: list[str]) -> None:
         result = call("PATCH", f"/api/offers/{quote(args[0])}", json_arg(args[1]))
     elif command == "delete":
         result = call("DELETE", f"/api/offers/{quote(args[0])}")
+    elif command == "posting":
+        result = call("GET", f"/api/postings/{quote(args[0])}")
     elif command == "meta-get":
         result = call("GET", f"/api/meta/{quote(args[0])}")
     elif command == "meta-put":

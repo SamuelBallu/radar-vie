@@ -93,3 +93,12 @@ def test_forged_or_expired_sessions_are_refused(anonymous):
 def test_logout_clears_the_cookie(owner):
     owner.post("/api/logout")
     assert owner.get("/api/offers").status_code == 401
+
+
+def test_postings_keep_the_full_text_for_agents_and_owner(owner, agent, anonymous):
+    stored = agent.put("/api/postings/245148", json={"text": "JUNIOR FORWARD DEPLOYED ENGINEER", "data": {"score": 71}})
+    assert stored.json() == {"id": "245148", "chars": 32}
+    assert owner.put("/api/postings/245148", json={"text": "x"}).status_code == 401
+    assert owner.get("/api/postings/245148").json()["data"] == {"score": 71}
+    assert anonymous.get("/api/postings/245148").status_code == 401
+    assert agent.get("/api/postings/999").status_code == 404

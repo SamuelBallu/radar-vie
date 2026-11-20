@@ -35,7 +35,7 @@ def database():
 @pytest.fixture(autouse=True)
 def empty_tables():
     with connect() as conn:
-        conn.execute("TRUNCATE offers, files, meta, failed_logins")
+        conn.execute("TRUNCATE offers, files, meta, failed_logins, postings")
 
 
 @pytest.fixture

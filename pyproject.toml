@@ -10,6 +10,11 @@ dependencies = [
     "argon2-cffi>=23.1",
 ]
 
+[project.optional-dependencies]
+collector = [
+    "playwright>=1.65.2",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",

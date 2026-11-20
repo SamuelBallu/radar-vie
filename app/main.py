@@ -211,6 +211,32 @@ def put_meta(key: str, conn: Db, body: Annotated[dict[str, Any], Body()]) -> dic
     return body
 
 
+# --- Postings: the full text of every offer the morning run read ----------------------
+
+
+class Posting(BaseModel):
+    text: str
+    data: dict[str, Any] = {}
+
+
+@app.put("/api/postings/{posting_id}", dependencies=AgentOnly)
+def put_posting(posting_id: str, body: Posting, conn: Db) -> dict:
+    conn.execute(
+        """INSERT INTO postings (id, text, data) VALUES (%s, %s, %s)
+           ON CONFLICT (id) DO UPDATE SET text = EXCLUDED.text, data = EXCLUDED.data, fetched_at = now()""",
+        (posting_id, body.text, Jsonb(body.data)),
+    )
+    return {"id": posting_id, "chars": len(body.text)}
+
+
+@app.get("/api/postings/{posting_id}")
+def get_posting(posting_id: str, _: Caller, conn: Db) -> dict:
+    row = conn.execute("SELECT * FROM postings WHERE id = %s", (posting_id,)).fetchone()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This offer was not read by the morning run.")
+    return {"id": row["id"], "text": row["text"], "data": row["data"], "fetched_at": row["fetched_at"].astimezone(UTC).isoformat()}
+
+
 # --- Files ---------------------------------------------------------------------------
 
 

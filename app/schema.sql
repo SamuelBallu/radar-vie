@@ -37,3 +37,12 @@ CREATE TABLE IF NOT EXISTS failed_logins (
     at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS failed_logins_at ON failed_logins (at);
+
+-- Every offer the morning run has read, kept whole: it can be rescored when the profile changes
+-- without reading the site again, and the letters can be written from it.
+CREATE TABLE IF NOT EXISTS postings (
+    id          text PRIMARY KEY,
+    text        text        NOT NULL,
+    data        jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    fetched_at  timestamptz NOT NULL DEFAULT now()
+);
