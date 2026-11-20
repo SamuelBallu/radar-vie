@@ -109,7 +109,7 @@ def read_facts(model: str, roles: dict, offer_text: str) -> dict:
         "secteur_mode_luxe_sport : vrai si l'entreprise est dans la mode, le luxe, la beauté ou le sport.\n"
         "portail_entreprise : vrai si la candidature passe par le site carrières de l'entreprise (Workday, Taleo, "
         "Greenhouse, lien vers un site de recrutement), faux si elle passe par Business France.\n"
-        "entreprise : le nom de marque connu (par exemple la marque citée dans la présentation), pas la raison sociale.\n"
+        "entreprise : le nom court et connu de l'entreprise, celui de sa marque (\"Coface\" et non \"Compagnie Française d'Assurance pour le Commerce Extérieur\", \"L'Occitane\" et non \"M&L Distribution\"), pas la raison sociale.\n"
         "pieces : ce que l'offre demande en plus du CV et de la lettre (portfolio, références, questions), ou \"\"."
     )
     return _chat(model, system, offer_text[:12000], FACTS_SCHEMA)
@@ -119,9 +119,10 @@ def write_texts(model: str, offer_text: str, facts: dict) -> dict:
     system = (
         "Tu écris en français, phrases courtes et simples, sans tiret cadratin ni emoji.\n"
         "resume : exactement deux phrases sur la mission, d'après l'offre.\n"
-        "pourquoi : une seule phrase qui dit ce qui colle au profil du candidat et ce qui manque, en utilisant "
-        "uniquement les faits fournis (compétences qu'il a, compétences qui manquent, remarques). Ne lui prête "
-        "aucune autre compétence."
+        "pourquoi : une seule phrase sur le candidat, à la troisième personne (\"il\"), qui dit ce qui colle et ce qui manque, "
+        "en utilisant uniquement les faits fournis (compétences qu'il a, compétences qui manquent, remarques). "
+        "Exemple : \"Poste data qui colle : il a Python, SQL et Power BI ; il lui manque Tableau.\" "
+        "Ne lui prête aucune autre compétence."
     )
     user = (
         "FAITS CALCULÉS\n" + json.dumps(facts, ensure_ascii=False) + "\n\nOFFRE\n" + offer_text[:10000]
