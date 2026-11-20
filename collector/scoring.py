@@ -90,6 +90,11 @@ def only_a_plus(text: str, language: str) -> bool:
     return bool(lines) and all(PLUS_WORDS.search(line) for line in lines)
 
 
+def is_language(skill: str) -> bool:
+    name = fold(skill)
+    return any(name.startswith(k[:5]) or name.startswith(v[:5]) for k, v in LANGUAGE_STEMS.items())
+
+
 def title_category(profile: dict, title: str) -> str | None:
     """The role category when the job title settles it (checked in the profile's order)."""
     t = f" {fold(title)} "
@@ -110,7 +115,8 @@ def score_offer(profile: dict, offer: Offer, facts: dict, today: date) -> Score:
     role = profile["roles"].get(category, {"points": 0})["points"]
 
     matcher = SkillMatcher.from_profile(profile)
-    requested = [s.strip() for s in facts.get("competences", []) if s and s.strip()]
+    # A language is a condition, not a skill (the model sometimes lists "Spanish" among the skills).
+    requested = [s.strip() for s in facts.get("competences", []) if s and s.strip() and not is_language(s)]
     have, missing = [], []
     for s in dict.fromkeys(requested):  # keep order, drop duplicates
         (have if matcher.owned(s) else missing).append(s)

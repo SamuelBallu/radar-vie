@@ -69,3 +69,9 @@ def test_a_required_language_he_does_not_speak_removes_the_offer():
 def test_a_language_only_named_as_a_plus_is_not_required():
     assert only_a_plus("La maîtrise de l'italien constitue un atout.", "italien")
     assert not only_a_plus("Italian is required.", "italien")
+
+
+def test_languages_listed_as_skills_are_ignored():
+    facts = FACTS | {"competences": ["Python", "Spanish", "espagnol"]}
+    s = score_offer(PROFILE, parse_offer("1", TEXT), facts, date(2026, 11, 20))
+    assert s.have == ["Python"] and s.missing == []
